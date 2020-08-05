@@ -1,11 +1,37 @@
 import React, { useState, useEffect } from 'react'
-import API from "./API";
+import API from './API'
+
+const Notification = ({ message}) =>
+  message
+  ? <div className='notification'>
+      <h1>{message}</h1>
+    </div>
+  : null
+
+  const Error = ({ message}) =>
+  message
+  ? <div className='error'>
+      <h1>{message}</h1>
+    </div>
+  : null
 
 const App = () => {
   const [ persons, setPersons ] = useState([])
   const [ name, setName ] = useState('')
   const [ number, setNumber ] = useState('')
   const [ filter, setFilter ] = useState('')
+  const [ message, setMessage ] = useState('')
+  const [ error, setError ] = useState('')
+
+  const showNotification = (message) => {
+    setMessage(message)
+    setTimeout(() => setMessage(''), 3000)
+  }
+
+  const showError = (error) => {
+    setError(error)
+    setTimeout(() => setError(''), 3000)
+  }
 
   useEffect(() => {
     const fun = () => API.getAllEntries().then(res => setPersons(res.data))
@@ -17,7 +43,8 @@ const App = () => {
       const newPerson = {...persons.find(p => p.name === name), number}
       API.updateEntry(newPerson)
         .then(res => setPersons(persons.map(p => p.name !== name ? p : res.data)))
-        .catch(console.log)
+        .then(() => showNotification(`${name}'s number updated.`))
+        .catch(() => showError(`Could not update ${name}'s number.`))
       setName('')
       setNumber('')
     }
@@ -31,19 +58,22 @@ const App = () => {
   }
 
   const addPerson = () => {
-    API.createEntry({ name, number }).then(res => setPersons(persons.concat(res.data)))
+    API.createEntry({ name, number })
+      .then(res => setPersons(persons.concat(res.data)))
+      .then(() => showNotification(`${name} added to phonebook.`))
+      .catch(() => showError(`Could not add ${name} to phonebook.`))
     setName('')
     setNumber('')
   }
 
   const deletePerson = (person) => {
     if (window.confirm(`Doy you want to delete ${person.name}?`))
-    API.deleteEntry(person).then(res => {
-      if (res.statusText === 'OK')
-        setPersons(persons.filter(p => p.id !== person.id))
-    })
+    API.deleteEntry(person)
+      .then(res => {
+        if (res.statusText === 'OK') showNotification(`${person.name} removed from phonebook.`)})
+      .catch(() => showError(`${person.name} has already been deleted.`))
+    setPersons(persons.filter(p => p.id !== person.id))
   }
-    
 
   const handleNameChange = event => setName(event.target.value)
   const handleNumberChange = event => setNumber(event.target.value)
@@ -51,6 +81,8 @@ const App = () => {
 
   return (
     <>
+    <Notification message={message}/>
+    <Error message={error}/>
       <h1>Phonebook</h1>
       <Filter filter={filter} handleFilterChange={handleFilterChange} />
       <AddPersonForm
@@ -58,9 +90,7 @@ const App = () => {
         handleNumberChange={handleNumberChange}
         handleNameChange={handleNameChange}
         newName={name}
-        newNumber={number}
-      />
-      
+        newNumber={number} />
       <Persons persons={persons} filter={filter} deletePerson={deletePerson}/>
     </>
   )
